@@ -1,0 +1,246 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {}
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "b5772a00-6b19-45df-8ba2-519ee89c4e2b",
+      "name": "Gmail Trigger",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "yROPiuyNm1GCqrGI",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "6bdf1a30-f7cb-4cca-9419-f7be5dcd4906",
+              "name": "threadId",
+              "value": "={{ $json.threadId }}",
+              "type": "string"
+            },
+            {
+              "id": "27c13181-6fbe-42df-9ec6-7df2a106d1f6",
+              "name": "emailBody",
+              "value": "={{ $json.snippet }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        208,
+        0
+      ],
+      "id": "b53ac874-59b3-4a61-869e-a913b4e9aa5a",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "\nAnalyze the content of the following email and determine whether it is related to customer support. If the email pertains to any of the following topics, mark customerSupport as true; otherwise, mark it as false.\n\nCustomer Support Topics Include:\n\nQuestions about order status, tracking, or changes\n\nIssues with damaged or defective products\n\nRefund or return requests\n\nSubscription cancellations or adjustments\n\nTechnical issues with products, website, or app\n\nPayment or billing inquiries\n\nRequests for speaking with a support representative\n\nOutput:\n\nProvide the result in JSON format with a field named \"customerSupport\" set to true or false"
+            },
+            {
+              "content": "=here is the incoming email:  {{ $json.emailBody }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        416,
+        0
+      ],
+      "id": "51b9862a-e0fe-4173-bad3-ef941e8386c0",
+      "name": "Message a model",
+      "credentials": {
+        "openAiApi": {
+          "id": "LhycRBRUA6wVHSAz",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.output[0].content[0].text }}",
+                    "rightValue": "true",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    },
+                    "id": "1ae0cebf-7217-4d4d-9c84-04ffc356c798"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "customer support"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "1406cad6-9e03-46df-89c4-6049d91ca336",
+                    "leftValue": "={{ $json.output[0].content[0].text }}",
+                    "rightValue": "false",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Not customer support"
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        768,
+        0
+      ],
+      "id": "c976fb67-717d-46c2-be00-7a1494a598f7",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "chatId": "7821212646",
+        "text": "This email is not customer support email.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        976,
+        96
+      ],
+      "id": "6c220600-2a1f-4ad1-a92b-b23397c05595",
+      "name": "Send a text message",
+      "webhookId": "3236988e-511b-4fdc-96b6-525e6068bd19",
+      "credentials": {
+        "telegramApi": {
+          "id": "KURHUkKk4pQMgI90",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "455fbbb6-34b1-458b-95bf-6e090cbb8852",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "c5f61291e1a9322201ad65a5b6c3702fe9b17a9d944f2dc0521f9aef85eb50dc"
+  },
+  "id": "yvFfl33JuHOtzdf9",
+  "tags": []
+}
